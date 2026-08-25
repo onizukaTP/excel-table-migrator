@@ -6,10 +6,10 @@ from pathlib import Path
 # Add project root to sys.path if needed
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from excel_to_postgres.config import Config
-from excel_to_postgres.db import Database, get_table_name
-from excel_to_postgres.excel_reader import ExcelReader
-from excel_to_postgres.json_builder import RecordBuilder
+from student_migrator.config import Config
+from student_migrator.db import Database, get_table_name
+from student_migrator.excel_reader import ExcelReader
+from student_migrator.json_builder import RecordBuilder
 
 logging.basicConfig(
     level=logging.INFO,

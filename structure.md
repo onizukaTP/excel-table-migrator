@@ -1,15 +1,22 @@
-import logging
-from contextlib import contextmanager
-import mysql.connector
+# Student Evaluation MySQL Flat Database Table Specification
 
-logger = logging.getLogger(__name__)
+This document details the MySQL database flat tables (`student_track_evaluation_sem2`, `student_track_evaluation_sem3`, `student_track_evaluation_sem4`) using the 15-character student register number (`id`) as the **PRIMARY KEY**.
 
-def get_table_name(semester: int) -> str:
-    if semester in (2, 3, 4):
-        return f"student_track_evaluation_sem{semester}"
-    raise ValueError(f"Invalid semester {semester}. Expected 2, 3, or 4.")
+---
 
-DDL_SEM2 = """
+## 1. Database Table Architecture
+
+Instead of storing surrogate integer keys (`student_id`), the database uses **`id` (15-character student register number e.g. `RA2411029010002`) directly as the PRIMARY KEY**:
+
+1. **`student_track_evaluation_sem2`** — Semester 2 Flat Table (`id VARCHAR(50) PRIMARY KEY`)
+2. **`student_track_evaluation_sem3`** — Semester 3 Flat Table (`id VARCHAR(50) PRIMARY KEY`)
+3. **`student_track_evaluation_sem4`** — Semester 4 Flat Table (`id VARCHAR(50) PRIMARY KEY`)
+
+---
+
+## 2. Semester 2 Flat Table DDL (`student_track_evaluation_sem2`)
+
+```sql
 CREATE TABLE IF NOT EXISTS student_track_evaluation_sem2 (
     id VARCHAR(50) PRIMARY KEY,
     sn INT,
@@ -134,9 +141,15 @@ CREATE TABLE IF NOT EXISTS student_track_evaluation_sem2 (
     oop_final VARCHAR(255),
     final_avg_track VARCHAR(255)
 );
-"""
+```
 
-DDL_SEM3 = """
+---
+
+## 3. Semester 3 Flat Table DDL (`student_track_evaluation_sem3`)
+
+Subjects: `string_*` (String Fundamentals...), `oop_*` (Core OOP Principles), `adv_oop_*` (Advanced OOP & Data Structures).
+
+```sql
 CREATE TABLE IF NOT EXISTS student_track_evaluation_sem3 (
     id VARCHAR(50) PRIMARY KEY,
     sn INT,
@@ -261,9 +274,15 @@ CREATE TABLE IF NOT EXISTS student_track_evaluation_sem3 (
     adv_oop_final VARCHAR(255),
     final_avg_track VARCHAR(255)
 );
-"""
+```
 
-DDL_SEM4 = """
+---
+
+## 4. Semester 4 Flat Table DDL (`student_track_evaluation_sem4`)
+
+Subjects: `dsa_*` (Data Structures & Algorithms), `collections_*` (Collections & Stream API), `java_adv_*` (Java Advanced).
+
+```sql
 CREATE TABLE IF NOT EXISTS student_track_evaluation_sem4 (
     id VARCHAR(50) PRIMARY KEY,
     sn INT,
@@ -388,106 +407,11 @@ CREATE TABLE IF NOT EXISTS student_track_evaluation_sem4 (
     java_adv_final VARCHAR(255),
     final_avg_track VARCHAR(255)
 );
-"""
+```
 
-DDLS = {
-    2: DDL_SEM2,
-    3: DDL_SEM3,
-    4: DDL_SEM4
-}
+---
 
-class Database:
-    def __init__(self, config):
-        self.config = config
-        self.conn = None
+## 5. Logical Unique Key & Upsert Rules
 
-    def connect(self):
-        try:
-            self.conn = mysql.connector.connect(
-                host=self.config.db_host,
-                port=self.config.db_port,
-                database=self.config.db_name,
-                user=self.config.db_user,
-                password=self.config.db_password
-            )
-            logger.info("Connected to MySQL database '%s' at %s:%s", 
-                        self.config.db_name, self.config.db_host, self.config.db_port)
-        except Exception as e:
-            logger.error("Failed to connect to MySQL database: %s", e)
-            raise
-
-    def close(self):
-        if self.conn and self.conn.is_connected():
-            self.conn.close()
-            logger.info("Closed MySQL database connection.")
-
-    def ensure_table(self, semester: int):
-        """Creates flat table student_track_evaluation_sem<semester> with `id` (student register number) as PRIMARY KEY."""
-        table_name = get_table_name(semester)
-        ddl = DDLS.get(semester)
-        if not ddl:
-            raise ValueError(f"No DDL defined for semester {semester}")
-
-        cursor = self.conn.cursor()
-        
-        # Check if table has old surrogate student_id column and drop if needed to re-create with id PRIMARY KEY
-        try:
-            cursor.execute(f"SHOW COLUMNS FROM `{table_name}` LIKE 'student_id';")
-            if cursor.fetchone():
-                logger.info("Recreating table '%s' to set 'id' (register number) as PRIMARY KEY...", table_name)
-                cursor.execute(f"DROP TABLE IF EXISTS `{table_name}`;")
-                self.conn.commit()
-        except Exception:
-            pass
-
-        cursor.execute(ddl)
-        self.conn.commit()
-        cursor.close()
-        logger.info("Ensured MySQL table '%s' exists with 'id' (15-char register number) as PRIMARY KEY.", table_name)
-
-    def upsert_row(self, semester: int, record_dict: dict) -> bool:
-        """
-        Upserts a flat record dict into student_track_evaluation_sem<semester>.
-        Uses ON DUPLICATE KEY UPDATE based on `id` (15-char student register number PRIMARY KEY).
-        Returns True if a new row was inserted, False if an existing row was updated.
-        """
-        table_name = get_table_name(semester)
-        
-        # Extract column names and values
-        cols = list(record_dict.keys())
-        val_placeholders = ", ".join(["%s"] * len(cols))
-        col_names = ", ".join([f"`{c}`" for c in cols])
-        
-        # Construct ON DUPLICATE KEY UPDATE clause (exclude primary key `id` from update)
-        update_assignments = ", ".join([f"`{c}`=VALUES(`{c}`)" for c in cols if c != "id"])
-
-        upsert_sql = f"""
-        INSERT INTO {table_name} ({col_names})
-        VALUES ({val_placeholders})
-        ON DUPLICATE KEY UPDATE {update_assignments};
-        """
-
-        values = [record_dict[c] for c in cols]
-
-        cursor = self.conn.cursor()
-        cursor.execute(upsert_sql, values)
-        is_insert = cursor.rowcount == 1
-        cursor.close()
-        return is_insert
-
-    def commit(self):
-        if self.conn and self.conn.is_connected():
-            self.conn.commit()
-
-    def rollback(self):
-        if self.conn and self.conn.is_connected():
-            self.conn.rollback()
-
-@contextmanager
-def get_db(config):
-    db = Database(config)
-    db.connect()
-    try:
-        yield db
-    finally:
-        db.close()
+- **Primary Key:** `id` (student 15-character register number e.g. `RA2411029010002`).
+- **Behavior:** Re-running a migration updates existing records (`ON DUPLICATE KEY UPDATE`) in-place based on `id` without creating duplicate rows.

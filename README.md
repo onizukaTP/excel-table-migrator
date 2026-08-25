@@ -1,67 +1,34 @@
-# Excel & CSV → PostgreSQL Student Evaluation Migration Tool
+# Student Evaluation Multi-Database Migration Tool (`student_migrator`)
 
-A production-ready Python migration tool designed to parse student evaluation data from Excel (`.xlsx`) or CSV (`.csv`) formats (Semesters 2, 3, and 4) and migrate them into dedicated PostgreSQL tables (`student_track_evaluation_sem2`, `student_track_evaluation_sem3`, `student_track_evaluation_sem4`) with tailored `JSONB` data columns.
+A production-ready Python migration tool designed to parse student evaluation data from Excel (`.xlsx`) or CSV (`.csv`) formats (Semesters 2, 3, and 4) and migrate them into dedicated, flat MySQL tables (`student_track_evaluation_sem2`, `student_track_evaluation_sem3`, `student_track_evaluation_sem4`).
 
 ---
 
 ## Key Features
 
-- **Dedicated Semester Tables:** Each semester's evaluation records are stored in its own table (`student_track_evaluation_sem2`, `student_track_evaluation_sem3`, `student_track_evaluation_sem4`).
+- **General Package Module (`student_migrator`):** Clean, database-agnostic package architecture.
+- **Dedicated Flat MySQL Tables:** Each semester's evaluation records are stored in its own flat database table (`student_track_evaluation_sem2`, `student_track_evaluation_sem3`, `student_track_evaluation_sem4`).
+- **15-Character Register Number Primary Key:** The 15-character student register number (`id`, e.g., `RA2411029010002`) serves directly as the `PRIMARY KEY`.
 - **Excel & CSV File Support:** Transparently handles both Excel workbooks (`.xlsx`) and CSV files (`.csv`).
-- **Tailored Semester JSON Schemas:** Each semester maps its evaluation tree cleanly without forcing unnecessary null fields from other semesters.
+- **Direct Column Mapping (No JSON):** Every evaluation metric, score, level, input, and comment is stored directly in individual SQL columns.
 - **Preservation over Calculation:** Raw scores, strings, and inputs are preserved as-is. No averages, tracks, or scores are recalculated.
 - **Multi-Sheet Batch Auto-Discovery:** Automatically scans workbooks and processes all sheets matching batch naming patterns (e.g., `B1P1 - Section - A`).
-- **Upsert Safety:** Uses `student_id` as the conflict target per semester table. Re-running a migration updates existing records instead of creating duplicates.
-- **Robust Error Handling:** Logs row-level failures with sheet name and row numbers, continuing processing safely. Non-student rows (e.g. blank rows/footers) are cleanly skipped.
+- **Upsert Safety:** Uses `id` (student register number) as the primary key conflict target per table. Re-running a migration updates existing records (`ON DUPLICATE KEY UPDATE`) in-place without creating duplicate rows.
+- **Robust Error & Skip Logging:** Logs row-level failures and skipped non-student rows (empty template rows, header repeats, footers) with clear reasons.
 
 ---
 
-## 1. PostgreSQL Setup
+## 1. MySQL Setup
 
-Ensure PostgreSQL (v12+) is installed and running. Create a target database:
+Ensure MySQL Server (v8.0+) is installed and running. Create a target database:
 
 ```sql
-CREATE DATABASE student_db;
+CREATE DATABASE srm_db;
 ```
 
 ---
 
-## 2. Database Table Creation
-
-The migration tool automatically creates the appropriate semester table if it does not exist. For manual creation or reference, the DDL statements are:
-
-```sql
--- Semester 2 Table
-CREATE TABLE IF NOT EXISTS student_track_evaluation_sem2 (
-    id             BIGSERIAL PRIMARY KEY,
-    student_id     VARCHAR(100) NOT NULL UNIQUE,
-    name           VARCHAR(255),
-    email          VARCHAR(255),
-    data           JSONB
-);
-
--- Semester 3 Table
-CREATE TABLE IF NOT EXISTS student_track_evaluation_sem3 (
-    id             BIGSERIAL PRIMARY KEY,
-    student_id     VARCHAR(100) NOT NULL UNIQUE,
-    name           VARCHAR(255),
-    email          VARCHAR(255),
-    data           JSONB
-);
-
--- Semester 4 Table
-CREATE TABLE IF NOT EXISTS student_track_evaluation_sem4 (
-    id             BIGSERIAL PRIMARY KEY,
-    student_id     VARCHAR(100) NOT NULL UNIQUE,
-    name           VARCHAR(255),
-    email          VARCHAR(255),
-    data           JSONB
-);
-```
-
----
-
-## 3. Python Environment Setup
+## 2. Python Environment Setup
 
 Create and activate a virtual environment (Python 3.10+ recommended):
 
@@ -77,7 +44,7 @@ source venv/bin/activate
 
 ---
 
-## 4. Installing Dependencies
+## 3. Installing Dependencies
 
 Install required dependencies:
 
@@ -85,84 +52,53 @@ Install required dependencies:
 pip install -r requirements.txt
 ```
 
-*Dependencies: `openpyxl`, `psycopg2-binary`, `python-dotenv`.*
+*Dependencies: `mysql-connector-python`, `openpyxl`, `python-dotenv`, `reportlab`.*
 
 ---
 
-## 5. Configuring `.env`
+## 4. Configuring `.env`
 
-Copy `.env.example` to `.env` and fill in your database credentials:
-
-```bash
-cp .env.example .env
-```
-
-`.env` example content:
+Copy `.env.example` to `.env` and fill in your MySQL database credentials:
 
 ```env
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=student_db
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_password_here
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_DB=srm_db
+MYSQL_USER=root
+MYSQL_PASSWORD=root
 ```
 
 ---
 
-## 6. Running Semester 2 Migration
+## 5. Running Semester Migrations
 
-Run migration for Semester 2 (targets `student_track_evaluation_sem2`):
-
+### Run Semester 2 Migration
 ```bash
-python excel_to_postgres/migrate.py --file path/to/semester_2.xlsx --semester 2
+python student_migrator/migrate.py --file path/to/semester_2.xlsx --semester 2
 ```
 
-To test without modifying PostgreSQL, add `--dry-run`:
-
+### Run Semester 3 Migration
 ```bash
-python excel_to_postgres/migrate.py --file path/to/semester_2.xlsx --semester 2 --dry-run
+python student_migrator/migrate.py --file path/to/semester_3.xlsx --semester 3
 ```
 
----
-
-## 7. Running Semester 3 Migration
-
-Run migration for Semester 3 (targets `student_track_evaluation_sem3`):
-
+### Run Semester 4 Migration
 ```bash
-python excel_to_postgres/migrate.py --file path/to/semester_3.xlsx --semester 3
+python student_migrator/migrate.py --file path/to/semester_4.xlsx --semester 4
 ```
 
----
-
-## 8. Running Semester 4 Migration
-
-Run migration for Semester 4 (targets `student_track_evaluation_sem4`):
+To test without modifying MySQL, add `--dry-run`:
 
 ```bash
-python excel_to_postgres/migrate.py --file path/to/semester_4.xlsx --semester 4
-```
-
-*Optional:* Filter to specific batch sheets using `--batch-filter`:
-
-```bash
-python excel_to_postgres/migrate.py --file path/to/semester_4.xlsx --semester 4 --batch-filter "^B1P"
+python student_migrator/migrate.py --file path/to/semester_3.xlsx --semester 3 --dry-run
 ```
 
 ---
 
-## 9. Re-running a Migration Safely
+## 6. Re-running Migrations Safely
 
-The database uses PostgreSQL `ON CONFLICT (student_id) DO UPDATE` per table.
+The database uses MySQL `ON DUPLICATE KEY UPDATE` based on the student 15-character register number (`id`).
 
-If you run the migration tool multiple times on the same Excel file or updated Excel data:
+If you run the migration tool multiple times on updated Excel or CSV files:
 - **No duplicate rows will be created.**
-- Existing records matching `student_id` in `student_track_evaluation_sem<N>` will have their `name`, `email`, and `data` JSON updated with the latest values.
-
----
-
-## 10. Blank Values & Data Preservation
-
-- Blank Excel cells, empty string cells (`""`), and `NaN` float values are converted to JSON `null`.
-- Floating-point `NaN` is sanitized recursively before insertion to ensure strict PostgreSQL JSONB compliance.
-- Scores, levels, and tracks are preserved exactly as present in input files without recalculation.
+- Existing records matching `id` in `student_track_evaluation_sem<N>` will be updated in-place with the latest column values.

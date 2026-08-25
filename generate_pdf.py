@@ -41,7 +41,7 @@ class NumberedCanvas(canvas.Canvas):
         self.setFillColor(colors.HexColor("#475569"))
         self.drawString(54, 11 * inch - 36, "STUDENT EVALUATION MIGRATION TOOL — TECHNICAL SPECIFICATION")
         self.setFont("Helvetica", 8)
-        self.drawRightString(8.5 * inch - 54, 11 * inch - 36, "POSTGRESQL & UNIFIED JSONB")
+        self.drawRightString(8.5 * inch - 54, 11 * inch - 36, "MYSQL FLAT DATABASE TABLES")
         
         self.setStrokeColor(colors.HexColor("#cbd5e1"))
         self.setLineWidth(0.5)
@@ -104,8 +104,8 @@ def build_pdf(md_filepath: str, pdf_filepath: str):
         'DocTitle',
         parent=styles['Heading1'],
         fontName='Helvetica-Bold',
-        fontSize=22,
-        leading=26,
+        fontSize=20,
+        leading=24,
         textColor=PRIMARY,
         spaceAfter=6
     ))
@@ -114,20 +114,20 @@ def build_pdf(md_filepath: str, pdf_filepath: str):
         'DocSubTitle',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=10.5,
+        fontSize=10,
         leading=14,
         textColor=colors.HexColor("#475569"),
-        spaceAfter=12
+        spaceAfter=10
     ))
 
     styles.add(ParagraphStyle(
         'SecHeading1',
         parent=styles['Heading1'],
         fontName='Helvetica-Bold',
-        fontSize=12.5,
-        leading=16,
+        fontSize=12,
+        leading=15,
         textColor=PRIMARY,
-        spaceBefore=14,
+        spaceBefore=12,
         spaceAfter=6,
         keepWithNext=True
     ))
@@ -136,10 +136,10 @@ def build_pdf(md_filepath: str, pdf_filepath: str):
         'SecHeading2',
         parent=styles['Heading2'],
         fontName='Helvetica-Bold',
-        fontSize=10,
-        leading=13,
+        fontSize=9.5,
+        leading=12,
         textColor=ACCENT,
-        spaceBefore=10,
+        spaceBefore=8,
         spaceAfter=4,
         keepWithNext=True
     ))
@@ -149,9 +149,9 @@ def build_pdf(md_filepath: str, pdf_filepath: str):
         parent=styles['BodyText'],
         fontName='Helvetica',
         fontSize=8.5,
-        leading=12.5,
+        leading=12,
         textColor=TEXT_COLOR,
-        spaceAfter=5
+        spaceAfter=4
     ))
 
     styles.add(ParagraphStyle(
@@ -159,7 +159,7 @@ def build_pdf(md_filepath: str, pdf_filepath: str):
         parent=styles['Normal'],
         fontName='Helvetica',
         fontSize=8.5,
-        leading=12.5,
+        leading=12,
         textColor=TEXT_COLOR,
         leftIndent=12,
         spaceAfter=3
@@ -169,8 +169,8 @@ def build_pdf(md_filepath: str, pdf_filepath: str):
         'CodeLine',
         parent=styles['Normal'],
         fontName='Courier',
-        fontSize=7,
-        leading=9,
+        fontSize=6.5,
+        leading=8.5,
         textColor=colors.HexColor("#0f172a")
     ))
 
@@ -196,21 +196,21 @@ def build_pdf(md_filepath: str, pdf_filepath: str):
     story = []
 
     # Document Header
-    story.append(Paragraph("Student Evaluation Database & Structure Specification", styles['DocTitle']))
-    story.append(Paragraph("Formal Technical Documentation — Single Table PostgreSQL & Unified JSONB Migration Standard", styles['DocSubTitle']))
-    story.append(HRFlowable(width="100%", thickness=2, color=ACCENT, spaceAfter=10))
+    story.append(Paragraph("Student Evaluation MySQL Flat Table Specification", styles['DocTitle']))
+    story.append(Paragraph("Formal Technical Documentation — MySQL Dedicated Flat Tables & 15-Char Register Number Primary Key", styles['DocSubTitle']))
+    story.append(HRFlowable(width="100%", thickness=2, color=ACCENT, spaceAfter=8))
 
     # Metadata Box
     meta_data = [
         [
-            Paragraph("<b>Target Database:</b> PostgreSQL 12+", styles['TableCell']),
-            Paragraph("<b>Primary Key:</b> <code>id (BIGSERIAL)</code>", styles['TableCell']),
-            Paragraph("<b>Logical Unique Key:</b> <code>(student_id, semester)</code>", styles['TableCell'])
+            Paragraph("<b>Database Engine:</b> MySQL Server 8.0+", styles['TableCell']),
+            Paragraph("<b>Primary Key:</b> <code>id (VARCHAR(50))</code>", styles['TableCell']),
+            Paragraph("<b>Conflict Strategy:</b> <code>ON DUPLICATE KEY UPDATE</code>", styles['TableCell'])
         ],
         [
-            Paragraph("<b>Scope:</b> Semesters 2, 3, & 4", styles['TableCell']),
-            Paragraph("<b>JSON Format:</b> PostgreSQL <code>JSONB</code>", styles['TableCell']),
-            Paragraph("<b>Strategy:</b> Preserved raw scores & UPSERT", styles['TableCell'])
+            Paragraph("<b>Tables:</b> Dedicated Per-Semester", styles['TableCell']),
+            Paragraph("<b>Package:</b> <code>student_migrator</code>", styles['TableCell']),
+            Paragraph("<b>File Formats:</b> Excel (.xlsx) & CSV (.csv)", styles['TableCell'])
         ]
     ]
     meta_table = Table(meta_data, colWidths=[2.3*inch, 2.3*inch, 2.4*inch])
@@ -256,12 +256,12 @@ def build_pdf(md_filepath: str, pdf_filepath: str):
                         ('BOX', (0,0), (-1,-1), 0.5, CODE_BORDER),
                         ('TOPPADDING', (0,0), (-1,-1), 1),
                         ('BOTTOMPADDING', (0,0), (-1,-1), 1),
-                        ('LEFTPADDING', (0,0), (-1,-1), 5),
-                        ('RIGHTPADDING', (0,0), (-1,-1), 5),
+                        ('LEFTPADDING', (0,0), (-1,-1), 4),
+                        ('RIGHTPADDING', (0,0), (-1,-1), 4),
                     ]))
-                    story.append(Spacer(1, 4))
+                    story.append(Spacer(1, 3))
                     story.append(t_code)
-                    story.append(Spacer(1, 6))
+                    story.append(Spacer(1, 5))
                 code_lines = []
             else:
                 in_code_block = True
@@ -299,30 +299,14 @@ def build_pdf(md_filepath: str, pdf_filepath: str):
                 header_cells = split_markdown_table_row(table_lines[0])
                 header_str = " ".join(c.lower() for c in header_cells)
 
-                # Tailored column width configuration
-                if "field path" in header_str and num_cols == 3:
-                    # Section 4 Subject Object Fields table (3 cols)
-                    col_widths = [2.2 * inch, 1.4 * inch, 3.4 * inch]
-                elif "field name" in header_str and num_cols == 3:
-                    # Section 3 Top-Level JSON Structure table (3 cols)
-                    col_widths = [1.8 * inch, 1.4 * inch, 3.8 * inch]
-                elif "column name" in header_str and num_cols == 4:
-                    # Section 1 Column Definitions table (4 cols)
-                    col_widths = [1.1 * inch, 1.1 * inch, 1.1 * inch, 3.7 * inch]
-                elif "json key" in header_str and num_cols == 2:
-                    # Section 5 Criteria Breakdown table (2 cols)
-                    col_widths = [1.5 * inch, 5.5 * inch]
-                elif "field path" in header_str and num_cols == 4:
-                    # Section 7 Field Availability Matrix table (4 cols)
-                    col_widths = [3.4 * inch, 1.2 * inch, 1.2 * inch, 1.2 * inch]
-                elif num_cols == 2:
-                    col_widths = [1.8 * inch, 5.2 * inch]
+                if num_cols == 2:
+                    col_widths = [1.8 * inch, 5.0 * inch]
                 elif num_cols == 3:
-                    col_widths = [2.0 * inch, 1.4 * inch, 3.6 * inch]
+                    col_widths = [2.0 * inch, 1.4 * inch, 3.4 * inch]
                 elif num_cols == 4:
-                    col_widths = [1.5 * inch, 1.3 * inch, 1.4 * inch, 2.8 * inch]
+                    col_widths = [1.5 * inch, 1.3 * inch, 1.4 * inch, 2.6 * inch]
                 else:
-                    col_widths = [(7.0 * inch) / num_cols] * num_cols
+                    col_widths = [(6.8 * inch) / num_cols] * num_cols
 
                 t = Table(table_data, colWidths=col_widths, repeatRows=1)
                 t.setStyle(TableStyle([
@@ -344,9 +328,9 @@ def build_pdf(md_filepath: str, pdf_filepath: str):
         # Headers
         if line.startswith("## "):
             h_text = line[3:].strip()
-            story.append(Spacer(1, 8))
+            story.append(Spacer(1, 6))
             story.append(Paragraph(h_text, styles['SecHeading1']))
-            story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#cbd5e1"), spaceAfter=5))
+            story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#cbd5e1"), spaceAfter=4))
             i += 1
             continue
 

@@ -1,5 +1,5 @@
 .env
 venv
-structure.md
-structure.pdf
+__pycache__/
+*.pyc
 data
