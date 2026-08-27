@@ -34,15 +34,24 @@ class RecordBuilder:
         """
         Processes a single Excel/CSV row dict.
         Returns (student_id, name, email, flat_record_dict).
-        If student_id is not present, returns (None, None, None, None) to skip non-student rows cleanly.
+        If both student_id and name are missing, returns (None, None, None, None) to skip non-student template/header/footer rows cleanly.
+        Any row containing a student_id or name is processed, even if all evaluation metrics are NULL.
         """
         student_id, name, email = self.mapping.extract_core_fields(row_dict, row_list)
         
-        if not student_id:
+        # Consider the row if it has an id OR a name (or both)
+        if not student_id and not name:
             return None, None, None, None
 
         raw_record = self.mapping.build_record(sheet_name, row_dict, row_list, student_id, name, email)
         clean_record = sanitize_flat_dict(raw_record)
+
+        if student_id:
+            clean_record["id"] = student_id
+        if name:
+            clean_record["full_name"] = name
+        if email:
+            clean_record["college_email_id"] = email
 
         return student_id, name, email, clean_record
 

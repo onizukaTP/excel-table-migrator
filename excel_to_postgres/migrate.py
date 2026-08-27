@@ -57,21 +57,24 @@ def run_migration(config: Config):
             try:
                 student_id, name, email, record_dict = builder.process_row(sheet_name, row_dict, row_list)
 
-                if not student_id:
+                if not student_id and not name:
                     skipped_rows += 1
                     non_empty = [str(cell).strip() for cell in row_list if cell is not None and str(cell).strip() != ""]
                     if not non_empty:
                         reason = "Entirely blank row"
                         preview = ""
                     else:
-                        reason = "No student register number / ID found in row"
+                        reason = "No student register number or name found in row"
                         preview = f" | Values: {non_empty[:4]}"
                     logger.info("[SKIPPED] [Sheet: %s | Row: %d] %s%s", sheet_name, row_idx, reason, preview)
                     continue
 
+                if not record_dict.get("id"):
+                    record_dict["id"] = student_id or name or f"UNKNOWN_{sheet_name}_{row_idx}"
+
                 if config.dry_run:
                     successfully_migrated += 1
-                    print(f"[DRY-RUN] [Sheet: {sheet_name} | Row: {row_idx}] Student ID: {student_id} | Name: {name} | Email: {email}")
+                    print(f"[DRY-RUN] [Sheet: {sheet_name} | Row: {row_idx}] Student ID: {record_dict['id']} | Name: {name} | Email: {email}")
                     if successfully_migrated == 1:
                         print("\nSample Flat Record preview:")
                         non_null_fields = {k: v for k, v in record_dict.items() if v is not None}
